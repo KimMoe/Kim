@@ -1,0 +1,269 @@
+package com.company;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.util.PriorityQueue;
+import java.util.Scanner;
+import java.util.TreeMap;
+import java.util.Scanner;
+
+/* Huffman kode som laster inn en valg fill eller lar deg skrive en tekst.
+ * Printer ut char intervallene i teksten. Printer også ut den binæere koden for bokstavene basert på oppbygninge av huffmantreet
+ * Etter et huffman tre er laget er det bulighet å skrive in binære tall for å få ut en tekst basert på strukturen av huffman treet
+ *Kan kun bruke bokstaver som var i den opprinelige teksten.
+ *
+ * Tekstfien som brukes har følgende adresse C:\temp\huffmanTest.txt
+ * dette må forandres i koden hvis du ønsker å bruke en annen fil. ...
+ * */
+
+public class Huffman {
+    static final boolean readFromFile = false;
+    static final boolean newTextBasedOnOldOne = false;
+
+    static PriorityQueue<Node> nodes = new PriorityQueue<>((o1, o2) -> (o1.value < o2.value) ? -1 : 1);
+    static TreeMap<Character, String> codes = new TreeMap<>();
+    static String text = "";
+    static String encoded = "";
+    static String decoded = "";
+    static int ASCII[] = new int[128];
+
+    public static void main(String[] args) throws FileNotFoundException {
+        Scanner scanner = (readFromFile) ? new Scanner(new File("input.txt")) : new Scanner(System.in);
+        int decision = 0;
+        while (decision != -1) {
+            if (handlingDecision(scanner, decision)) continue;
+            decision = consoleMenu(scanner);
+
+        }
+    }
+
+    /*
+    Meny for valg mellom å skive inn egen tekst eller hente in lokal txt fil.
+     */
+    private static int consoleMenu(Scanner scanner) {
+        int decision;
+        System.out.println("\n---- Menu ----\n" +
+                "-- [-1] to exit \n" +
+                "-- [1] to enter text\n" +
+                "-- [2] to load text file\n" +
+                "-- [3] to decode binary text");
+        decision = Integer.parseInt(scanner.nextLine());
+        if (readFromFile)
+            System.out.println("Decision: " + decision + "\n---- End of Menu ----\n");
+        return decision;
+    }
+
+    /*
+    Leser hva du velger i menyen.
+    1 Scanner og kjører metode for å håntere tekst
+    2 kjører metode for å laste inn txt fil
+     */
+    private static boolean handlingDecision(Scanner scanner, int decision) throws FileNotFoundException {
+        if (decision == 1) {
+            if (handleNewText(scanner)) return true;
+        } else if (decision == 2) {
+            importTextFile();
+            return false;
+        } else if (decision == 3) {
+            handleDecodingNewText(scanner);
+
+        }
+        return false;
+    }
+
+    /*
+    Scanner teksten fra en fil og kjørere metoer for å konvertere dette til et huffman tree
+     */
+    private static void importTextFile() throws FileNotFoundException {
+        Scanner sc = new Scanner(new FileReader("C:\\temp\\huffmanTest.txt"));
+        StringBuilder sb = new StringBuilder();
+        while (sc.hasNext()) {
+            sb.append(sc.next());
+        }
+        sc.close();
+        text = sb.toString();
+        ASCII = new int[128];
+        nodes.clear();
+        codes.clear();
+        encoded = "";
+        decoded = "";
+        System.out.println("Text: " + text);
+        calculateCharIntervals(nodes, true);
+        buildTree(nodes);
+        generateCodes(nodes.peek(), "");
+
+        printCodes();
+        System.out.println("-- Encoding/Decoding --");
+        encodeText();
+        decodeText();
+
+    }
+    /*
+    Metode for å scanne binære tekst
+     */
+        private static void handleDecodingNewText(Scanner scanner) {
+            System.out.println("Enter the text to decode:");
+            encoded = scanner.nextLine();
+            System.out.println("Text to Decode: " + encoded);
+            decodeText();
+        }
+
+    /*
+    Scanner in teksten og kjører metoder for å bygge et hoffman tree basert på teksten.
+     */
+    private static boolean handleNewText(Scanner scanner) {
+        int oldTextLength = text.length();
+        System.out.println("Enter the text:");
+        text = scanner.nextLine();
+        if (newTextBasedOnOldOne && (oldTextLength != 0 && !IsSameCharacterSet())) {
+            System.out.println("Not Valid input");
+            text = "";
+            return true;
+        }
+        ASCII = new int[128];
+        nodes.clear();
+        codes.clear();
+        encoded = "";
+        decoded = "";
+        System.out.println("Text: " + text);
+        calculateCharIntervals(nodes, true);
+        buildTree(nodes);
+        generateCodes(nodes.peek(), "");
+
+        printCodes();
+        System.out.println("-- Encoding/Decoding --");
+        encodeText();
+        decodeText();
+        return false;
+
+
+    }
+
+    private static boolean IsSameCharacterSet() {
+        boolean flag = true;
+        for (int i = 0; i < text.length(); i++)
+            if (ASCII[text.charAt(i)] == 0) {
+                flag = false;
+                break;
+            }
+        return flag;
+    }
+
+    /*
+    Kjører den binære tallrekefølgen som vi får fra encodeText() metoden
+    og gjør den om til bokstaver basert på huffman treet.
+    Dette er for å sjekke at den greier å dekode sekvensen vi får generert av å lage huffman treet.
+    Brukes og til å skrive inn binære tall for å få ut tekst basert på tallkoden av hver bokstav som genereres
+    ved å lage et huffman tree.
+    Kan kun bruke bokstaver som var i den opprinelige teksten.
+    */
+    private static void decodeText() {
+        decoded = "";
+        Node node = nodes.peek();
+        for (int i = 0; i < encoded.length(); ) {
+            Node tmpNode = node;
+            while (tmpNode.left != null && tmpNode.right != null && i < encoded.length()) {
+                if (encoded.charAt(i) == '1')
+                    tmpNode = tmpNode.right;
+                else tmpNode = tmpNode.left;
+                i++;
+            }
+            if (tmpNode != null)
+                if (tmpNode.character.length() == 1)
+                    decoded += tmpNode.character;
+
+        }
+        System.out.println("Decoded Text: " + decoded);
+    }
+
+    /*
+    Viser teksten i binære tall.
+     */
+    private static void encodeText() {
+        encoded = "";
+        for (int i = 0; i < text.length(); i++)
+            encoded += codes.get(text.charAt(i));
+        System.out.println("Encoded Text: " + encoded);
+    }
+
+    /*
+    bygger et huffman tre basert på klassen PriorityQueue frabibloteket og klassen node(i bunnen av filen)
+     */
+    private static void buildTree(PriorityQueue<Node> vector) {
+        while (vector.size() > 1)
+            vector.add(new Node(vector.poll(), vector.poll()));
+    }
+
+    /*
+    Printer ut tegnene og binære verdien de har for i huffman treet
+     */
+    private static void printCodes() {
+        System.out.println("--- Printing Codes ---");
+        codes.forEach((k, v) -> System.out.println("'" + k + "' : " + v));
+    }
+
+    /*
+    Går gjennom teksten og finner hvor mange ganger tegnene er brukt. lager så noder basert på antal intervller av
+    tegnet i teksten.
+     */
+    private static void calculateCharIntervals(PriorityQueue<Node> vector, boolean printIntervals) {
+        if (printIntervals) System.out.println("-- intervals --");
+
+        for (int i = 0; i < text.length(); i++)
+            ASCII[text.charAt(i)]++;
+
+        for (int i = 0; i < ASCII.length; i++)
+            if (ASCII[i] > 0) {
+                vector.add(new Node(ASCII[i] / (text.length() * 1.0), ((char) i) + ""));
+                if (printIntervals)
+                    System.out.println("'" + ((char) i) + "' : " + ASCII[i] / (text.length() * 1.0));
+            }
+    }
+
+    /*
+    Generer plasseringen for nodene
+     */
+    private static void generateCodes(Node node, String s) {
+        if (node != null) {
+            if (node.right != null)
+                generateCodes(node.right, s + "1");
+
+            if (node.left != null)
+                generateCodes(node.left, s + "0");
+
+            if (node.left == null && node.right == null)
+                codes.put(node.character.charAt(0), s);
+        }
+    }
+}
+
+/*
+Klassen node. Denne blir brukt for å opprette en node og gi den plasering på huffman treet.
+allså høyre venste for root og verdien nedover treet.
+ */
+class Node {
+    Node left, right;
+    double value;
+    String character;
+
+    public Node(double value, String character) {
+        this.value = value;
+        this.character = character;
+        left = null;
+        right = null;
+    }
+
+    public Node(Node left, Node right) {
+        this.value = left.value + right.value;
+        character = left.character + right.character;
+        if (left.value < right.value) {
+            this.right = right;
+            this.left = left;
+        } else {
+            this.right = left;
+            this.left = right;
+        }
+    }
+}
